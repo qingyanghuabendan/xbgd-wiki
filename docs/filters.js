@@ -8,11 +8,20 @@
   var buttons = document.querySelectorAll('.cardSelectOption');
   if (!buttons.length) return;
 
-  /* 只在同一张表所属的筛选框内联动：把按钮按最近的容器分组 */
+  /* 作用域 = 最近的 .filter-box 祖先；若因 HTML 结构问题取不到容器，
+     退化到「同时包含一组按钮和一张表」的最近祖先，避免整站筛选直接失灵。 */
   function scopeOf(btn) {
     var el = btn;
     while (el && el.parentNode) {
       if (el.classList && el.classList.contains('filter-box')) return el;
+      el = el.parentNode;
+    }
+    el = btn.parentNode;
+    while (el && el.parentNode && el !== document.body) {
+      if (el.querySelectorAll && el.querySelectorAll('.cardSelectOption').length &&
+          el.querySelector && el.querySelector('table')) {
+        return el;
+      }
       el = el.parentNode;
     }
     return document.body;
@@ -62,20 +71,25 @@
     scope.appendChild(counter);
 
     function activeValues() {
-      var byGroup = {};
+      var byGroup = {}, resets = {};
       var btns = scope.querySelectorAll('.cardSelectOption.cardSelectOn');
       for (var i = 0; i < btns.length; i++) {
         var g = btns[i].getAttribute('data-group');
         var opt = (btns[i].getAttribute('data-option') || '').split('|');
-        var val = opt.length > 1 ? opt[1] : opt[0];
-        if (!g || g === '0' || !val) continue;
+        var val = opt.length > 1 ? opt[1] : '';
+        // 值为空（如 data-option="全部|"）或 data-group="0" 视为重置键，不参与匹配
+        if (!g || g === '0' || g === 'all' || !val) {
+          if (g && g !== '0') resets[g] = true;
+          continue;
+        }
         (byGroup[g] = byGroup[g] || []).push(val);
       }
-      return byGroup;
+      return { sel: byGroup, resets: resets };
     }
 
     function apply() {
-      var sel = activeValues();
+      var act = activeValues();
+      var sel = act.sel, resets = act.resets;
       var groups = Object.keys(sel);
       var shown = 0;
       for (var i = 0; i < rows.length; i++) {
@@ -83,6 +97,7 @@
         var ok = true;
         var names = paramNames(tr);
         for (var g = 0; g < groups.length && ok; g++) {
+          if (resets[groups[g]]) continue;      // 该组被重置，不参与匹配
           var want = sel[groups[g]];
           var got = false;
           for (var n = 0; n < names.length && !got; n++) {
@@ -97,7 +112,8 @@
         tr.classList.toggle('hide', !ok);
         if (ok) shown++;
       }
-      counter.innerHTML = groups.length
+      var eff = groups.filter(function (g) { return !resets[g]; }).length;
+      counter.innerHTML = eff
         ? '筛选结果：<b>' + shown + '</b> / ' + rows.length + ' 条'
         : '共 <b>' + rows.length + '</b> 条（点上面的按钮筛选）';
     }
@@ -106,9 +122,15 @@
       var btn = ev.target.closest ? ev.target.closest('.cardSelectOption') : null;
       if (!btn || !scope.contains(btn)) return;
       var group = btn.getAttribute('data-group');
+      var opt = (btn.getAttribute('data-option') || '').split('|');
+      var val = opt.length > 1 ? opt[1] : '';
       if (group === '0') {
         var on = scope.querySelectorAll('.cardSelectOption.cardSelectOn');
         for (var i = 0; i < on.length; i++) on[i].classList.remove('cardSelectOn');
+      } else if (!val) {
+        // 本组的「全部」：只重置同组按钮
+        var same = scope.querySelectorAll('.cardSelectOption[data-group="' + group + '"]');
+        for (var j = 0; j < same.length; j++) same[j].classList.remove('cardSelectOn');
       } else {
         btn.classList.toggle('cardSelectOn');
       }
