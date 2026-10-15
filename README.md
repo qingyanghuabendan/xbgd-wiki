@@ -26,8 +26,11 @@ docs/                      ← GitHub Pages 发布的目录（由脚本生成，
   .nojekyll                跳过 Jekyll 处理
 site/                      ← 站点生成器（源文件）
   build_site.py            复用 target/ 内容渲染整站
-  style.css search.js filters.js
-  test_filters.js          筛选逻辑的 node 测试
+  make_preview.py          产出离线单文件预览
+  push_github.js           用 Git Data API 推送到 GitHub（无需本机 git）
+  check_live_filters.js    线上验收：比对线上产物与本地是否一致
+  style.css search.js filters.js   站点资源（会复制进 docs/）
+  tests/                   筛选功能的测试（linkedom 真实 DOM）
 target/                    ← 内容源：pages/*.wiki（37 页）+ templates/*.wiki（14 个模板）
 source/                    ← 原始抓取数据（源站 wikitext、模板规范）
 ```
@@ -39,7 +42,8 @@ $py = 'C:\Users\27445\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\python\
 $node = 'C:\Users\27445\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe'
 
 & $py site/build_site.py      # 渲染 37 页 -> docs/（会先清空 docs/）
-& $node site/test_filters.js  # 校验筛选逻辑（7 项断言）
+& $py site/make_preview.py    # 额外产出一个离线单文件预览（双击即可看整站）
+& $node site/tests/run_all.js # 筛选功能的全部测试
 ```
 
 `build_site.py` **真正执行** `target/templates/*.wiki`（复用 `preview_local.py` 的
@@ -54,6 +58,22 @@ $node = 'C:\Users\27445\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\
 4. 表格包 `.table-scroll`、筛选容器补 `.filter-box`，并生成页面外壳（侧栏 / 顶栏 / 面包屑）。
 
 只复制**实际被引用**的图片到 `docs/assets/`，所以仓库里不会堆用不到的文件。
+
+## 筛选功能的测试
+
+筛选功能出过两次「测试全绿但线上是坏的」事故，根因都是**手写 DOM 桩的保真度不足**
+（桩里自己塞进去的类集合，掩盖了「容器类根本没写成 class」这类错误）。
+现在测试改用 `linkedom`（真实的 DOM 实现）：加载 `docs/` 里生成的页面，
+执行线上同一个 `site/filters.js`，并通过派发真实 `click` 事件驱动。
+
+| 测试 | 作用 |
+| --- | --- |
+| `tests/test_linkedom_fidelity.js` | **先证明测试环境可信**：逐项断言筛选代码依赖的 DOM 语义（`classList` 与 `className` 是否同一份集合、事件冒泡、`closest`、`table.tBodies` 是否存在等） |
+| `tests/test_html_invariants.js` | 结构约束：`filter-box` 必须是合法 class（不能是裸属性）、HTML 不得预置计数器、每个 `data-group` 都要有对应的 `data-paramN` 列 |
+| `tests/test_filters.js` | 交互：点击后的行数与「独立于被测代码、按 `data-param` 自行计算」的结果逐一比对；覆盖组内取或、组间取与、重置键、初始化幂等 |
+
+`tests/run_all.js` 按上述顺序跑完，任一步失败即非零退出。
+（测试依赖只装在本地：`cd site/tests && pnpm install --shamefully-hoist`。）
 
 ## 本地预览
 

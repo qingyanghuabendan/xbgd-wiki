@@ -9,6 +9,10 @@ live_status.json
 __pycache__/
 *.pyc
 
+# 测试用的依赖（只在本地跑测试时安装）
+site/tests/node_modules/
+site/tests/pnpm-lock.yaml
+
 # 预览与临时文件
 star_bay_preview.html
 *_check.png

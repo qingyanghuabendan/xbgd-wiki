@@ -1,144 +1,217 @@
-/* 可筛选表格（等价 BWIKI 的 CardSelect 组件）：
-   按钮 .cardSelectOption[data-group][data-option="显示|值"]
-   行   <tr data-param1="值1,值2" data-param2="…">
-   规则：同组内多选为「或」，不同组之间为「且」；data-group="0" 是「全部」重置键。 */
+/* 星布谷地 WIKI —— 可筛选表格（重写版）
+ *
+ * 设计约定（与 build_site.py 的产物一一对应，不依赖任何结构猜测）：
+ *   容器   <div class="filter-box"> …按钮… </div>      必须存在，且是表格的前一个兄弟节点
+ *   按钮   <span class="cardSelectOption" data-group="N" data-option="显示|值">
+ *   数据行 <tr data-param1="值1,值2" data-param2="…">   列号 N 与 data-group="N" 对应
+ *   重置键 data-group="0"，或同组内 data-option 的值为空（形如 "全部|"）
+ *
+ * 语义：组内多选取「或」，组间取「与」；重置键只清空本组。
+ *
+ * 三条硬性要求（都是之前踩过的坑）：
+ *   1. 初始化幂等 —— 同一容器被处理多次不得产生副作用（曾堆出十几个计数器）；
+ *   2. 不用 table.tBodies —— 兼容不实现该 API 的 DOM（如测试环境的 linkedom）；
+ *   3. 组与数据列对不上时主动报出来，而不是静默筛成空表。
+ */
 (function () {
   'use strict';
 
-  var buttons = document.querySelectorAll('.cardSelectOption');
-  if (!buttons.length) return;
+  var MARK = 'data-xbgd-filters';
+  var tpl = null;
 
-  /* 作用域 = 最近的 .filter-box 祖先；若因 HTML 结构问题取不到容器，
-     退化到「同时包含一组按钮和一张表」的最近祖先，避免整站筛选直接失灵。 */
-  function scopeOf(btn) {
-    var el = btn;
-    while (el && el.parentNode) {
-      if (el.classList && el.classList.contains('filter-box')) return el;
-      el = el.parentNode;
-    }
-    el = btn.parentNode;
-    while (el && el.parentNode && el !== document.body) {
-      if (el.querySelectorAll && el.querySelectorAll('.cardSelectOption').length &&
-          el.querySelector && el.querySelector('table')) {
-        return el;
+  function boxes() {
+    var list = document.querySelectorAll('.filter-box');
+    // 退化路径：万一容器类没写上，用「同时包含按钮和表格」的最近祖先兜底
+    if (!list.length) {
+      var btns = document.querySelectorAll('.cardSelectOption');
+      var seen = [];
+      for (var i = 0; i < btns.length; i++) {
+        var el = btns[i].parentNode;
+        while (el && el.nodeType === 1 && el !== document.body) {
+          if (el.querySelectorAll('.cardSelectOption').length && el.querySelector('table')) {
+            if (seen.indexOf(el) < 0) { seen.push(el); list = seen; }
+            break;
+          }
+          el = el.parentNode;
+        }
       }
-      el = el.parentNode;
     }
-    return document.body;
+    return list || [];
   }
 
-  function tableOf(scope) {
-    /* 筛选框之后的第一个表格 */
-    var el = scope.nextElementSibling;
-    while (el) {
+  /* 表格：优先取容器后面的第一个表格；退化到容器内的第一个表格 */
+  function tableOf(box) {
+    var el = box.nextElementSibling;
+    var guard = 0;
+    while (el && guard++ < 40) {
       if (el.tagName === 'TABLE') return el;
-      if (el.classList && el.classList.contains('table-scroll')) {
-        var t = el.querySelector('table');
-        if (t) return t;
-      }
-      var inner = el.querySelector && el.querySelector('table');
-      if (inner) return inner;
+      if (el.querySelector && el.querySelector('table')) return el.querySelector('table');
       el = el.nextElementSibling;
     }
-    return document.querySelector('table.wikitable');
+    return box.querySelector ? box.querySelector('table') : null;
+  }
+
+  /* 行：只认带 data-paramN 的行，表头行也带，所以会一起参与筛选 */
+  function rowsOf(table) {
+    var all = table.querySelectorAll('tr');
+    var rows = [];
+    for (var i = 0; i < all.length; i++) {
+      if (paramNames(all[i]).length) rows.push(all[i]);
+    }
+    return rows;
   }
 
   function paramNames(tr) {
     var names = [];
-    for (var i = 0; i < tr.attributes.length; i++) {
-      var a = tr.attributes[i];
-      if (/^data-param\d+$/.test(a.name)) names.push(a.name);
+    var attrs = tr.attributes || [];
+    for (var i = 0; i < attrs.length; i++) {
+      if (/^data-param\d+$/.test(attrs[i].name)) names.push(attrs[i].name);
     }
-    names.sort(function (x, y) {
-      return parseInt(x.replace(/\D/g, ''), 10) - parseInt(y.replace(/\D/g, ''), 10);
-    });
     return names;
   }
 
-  function setup(scope) {
-    var table = tableOf(scope);
-    if (!table) return;
-    var tbody = table.tBodies[0] || table;
-    var rows = [];
-    var all = tbody.rows;
-    for (var i = 0; i < all.length; i++) {
-      if (paramNames(all[i]).length) rows.push(all[i]);   // 表头行也带 param，参与筛选
+  function parseOption(btn) {
+    var raw = btn.getAttribute('data-option') || '';
+    var i = raw.indexOf('|');
+    var text = i < 0 ? raw : raw.slice(0, i);
+    var value = i < 0 ? raw : raw.slice(i + 1);
+    var group = btn.getAttribute('data-group');
+    if (group === null || group === '') group = '0';
+    return { text: text, value: value, group: group, reset: group === '0' || value === '' };
+  }
+
+  function labelOf(box) {
+    var el = box.previousElementSibling;
+    while (el && el.tagName !== 'B' && el.tagName !== 'STRONG' && el.tagName !== 'H2' &&
+           el.tagName !== 'H3' && el.tagName !== 'H4') {
+      el = el.previousElementSibling;
     }
-    if (!rows.length) return;
+    return el ? (el.textContent || '').trim().slice(0, 24) : '(本页)';
+  }
 
-    // 初始化必须幂等：scopeOf() 对同一容器里的每个按钮都会返回同一个容器，
-    // 若不加标记，setup 会被调用 N 次，往同一个容器里塞 N 个计数器。
-    if (scope.getAttribute('data-xbgd-init') === '1') return;
-    scope.setAttribute('data-xbgd-init', '1');
-
-    var counter = scope.querySelector('.filter-count');
-    if (!counter) {
-      counter = document.createElement('div');
-      counter.className = 'filter-count';
-      scope.appendChild(counter);
+  function Counter(box) {
+    var el = box.querySelector('.filter-count');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'filter-count';
+      box.appendChild(el);
     }
-
-    function activeValues() {
-      var byGroup = {}, resets = {};
-      var btns = scope.querySelectorAll('.cardSelectOption.cardSelectOn');
-      for (var i = 0; i < btns.length; i++) {
-        var g = btns[i].getAttribute('data-group');
-        var opt = (btns[i].getAttribute('data-option') || '').split('|');
-        var val = opt.length > 1 ? opt[1] : '';
-        // 值为空（如 data-option="全部|"）或 data-group="0" 视为重置键，不参与匹配
-        if (!g || g === '0' || g === 'all' || !val) {
-          if (g && g !== '0') resets[g] = true;
-          continue;
+    return {
+      show: function (matched, total, effective, hasProblem) {
+        if (hasProblem) {
+          el.innerHTML = '共 <b>' + total + '</b> 条 · <span class="filter-problem">' +
+                         '部分筛选按钮与表格数据列对不上，点它们会筛不出内容</span>';
+        } else if (effective) {
+          el.innerHTML = '筛选结果：<b>' + matched + '</b> / ' + total + ' 条';
+        } else {
+          el.innerHTML = '共 <b>' + total + '</b> 条（点上面的按钮筛选）';
         }
-        (byGroup[g] = byGroup[g] || []).push(val);
+      },
+    };
+  }
+
+  function init(box) {
+    if (box.getAttribute(MARK) === '1') return;      // 幂等：只初始化一次
+    var table = tableOf(box);
+    if (!table) return;
+    var rows = rowsOf(table);
+    if (!rows.length) return;
+    box.setAttribute(MARK, '1');
+
+    // ---- 建索引：一次解析，之后筛选不再碰 DOM 结构 ----
+    var btnEls = box.querySelectorAll('.cardSelectOption');
+    var buttons = [];
+    var groups = [];                                  // [{id, buttons:[], resetButtons:[]}]
+    var groupById = {};
+    for (var i = 0; i < btnEls.length; i++) {
+      var info = parseOption(btnEls[i]);
+      info.el = btnEls[i];
+      buttons.push(info);
+      var g = groupById[info.group];
+      if (!g) { g = groupById[info.group] = { id: info.group, buttons: [], resetButtons: [] }; groups.push(g); }
+      (info.reset ? g.resetButtons : g.buttons).push(info);
+    }
+
+    var data = [];
+    var columns = {};
+    for (var r = 0; r < rows.length; r++) {
+      var names = paramNames(rows[r]);
+      var values = {};
+      for (var n = 0; n < names.length; n++) {
+        values[names[n]] = (rows[r].getAttribute(names[n]) || '').split(',')
+          .map(function (s) { return s.trim(); }).filter(Boolean);
+        columns[names[n]] = true;
       }
-      return { sel: byGroup, resets: resets };
+      data.push({ el: rows[r], values: values });
+    }
+
+    // 页面自身的筛选维度可能与数据列数不一致（源数据就缺列）——预先算出来提示。
+    // 注意：只对「有可点选项的组」报缺列；纯重置组（如只有 data-group="0"）本就无数据列。
+    var paramIndexes = {};
+    Object.keys(columns).forEach(function (k) { paramIndexes[k.replace('data-param', '')] = true; });
+    var missing = groups.filter(function (g) {
+      return g.buttons.length > 0 && !paramIndexes[g.id];
+    }).map(function (g) { return g.id; });
+    var broken = missing.length > 0;
+
+    var counter = Counter(box);
+    if (broken && window.console && console.warn) {
+      console.warn('[筛选] ' + labelOf(box) + '：data-group=' + missing.join(',') +
+                   ' 没有对应的 data-paramN 数据列，这些按钮点下去会筛不出内容。');
+    }
+
+    function selected() {
+      var on = {};
+      for (var i = 0; i < buttons.length; i++) {
+        var b = buttons[i];
+        if (!b.reset && b.el.classList.contains('cardSelectOn')) {
+          (on[b.group] = on[b.group] || []).push(b.value);
+        }
+      }
+      return on;
     }
 
     function apply() {
-      var act = activeValues();
-      var sel = act.sel, resets = act.resets;
-      var groups = Object.keys(sel);
-      var shown = 0;
-      for (var i = 0; i < rows.length; i++) {
-        var tr = rows[i];
+      var on = selected();
+      var ids = Object.keys(on);
+      var matched = 0;
+      for (var i = 0; i < data.length; i++) {
         var ok = true;
-        var names = paramNames(tr);
-        for (var g = 0; g < groups.length && ok; g++) {
-          if (resets[groups[g]]) continue;      // 该组被重置，不参与匹配
-          var want = sel[groups[g]];
-          var got = false;
-          for (var n = 0; n < names.length && !got; n++) {
-            var raw = tr.getAttribute(names[n]) || '';
-            var vals = raw.split(',');
-            for (var v = 0; v < vals.length; v++) {
-              if (want.indexOf(vals[v].trim()) >= 0) { got = true; break; }
-            }
+        for (var g = 0; g < ids.length && ok; g++) {
+          var want = on[ids[g]];
+          var have = data[i].values['data-param' + ids[g]] || [];
+          var hit = false;
+          for (var w = 0; w < want.length && !hit; w++) {
+            if (have.indexOf(want[w]) >= 0) hit = true;
           }
-          if (!got) ok = false;
+          if (!hit) ok = false;
         }
-        tr.classList.toggle('hide', !ok);
-        if (ok) shown++;
+        data[i].el.classList.toggle('hide', !ok);
+        if (ok) matched++;
       }
-      var eff = groups.filter(function (g) { return !resets[g]; }).length;
-      counter.innerHTML = eff
-        ? '筛选结果：<b>' + shown + '</b> / ' + rows.length + ' 条'
-        : '共 <b>' + rows.length + '</b> 条（点上面的按钮筛选）';
+      counter.show(matched, data.length, ids.length, broken);
+      return matched;
     }
 
-    scope.addEventListener('click', function (ev) {
-      var btn = ev.target.closest ? ev.target.closest('.cardSelectOption') : null;
-      if (!btn || !scope.contains(btn)) return;
-      var group = btn.getAttribute('data-group');
-      var opt = (btn.getAttribute('data-option') || '').split('|');
-      var val = opt.length > 1 ? opt[1] : '';
-      if (group === '0') {
-        var on = scope.querySelectorAll('.cardSelectOption.cardSelectOn');
-        for (var i = 0; i < on.length; i++) on[i].classList.remove('cardSelectOn');
-      } else if (!val) {
-        // 本组的「全部」：只重置同组按钮
-        var same = scope.querySelectorAll('.cardSelectOption[data-group="' + group + '"]');
-        for (var j = 0; j < same.length; j++) same[j].classList.remove('cardSelectOn');
+    function reset(groupId) {
+      for (var i = 0; i < buttons.length; i++) {
+        if (buttons[i].group === groupId) buttons[i].el.classList.remove('cardSelectOn');
+      }
+    }
+
+    box.addEventListener('click', function (ev) {
+      var node = ev.target;
+      var btn = null;
+      while (node && node !== box) {
+        if (node.classList && node.classList.contains('cardSelectOption')) { btn = node; break; }
+        node = node.parentNode;
+      }
+      if (!btn) return;
+      var info = parseOption(btn);
+      if (info.group === '0') {
+        for (var i = 0; i < buttons.length; i++) buttons[i].el.classList.remove('cardSelectOn');
+      } else if (info.reset) {
+        reset(info.group);
       } else {
         btn.classList.toggle('cardSelectOn');
       }
@@ -148,11 +221,18 @@
     apply();
   }
 
-  /* 收集所有筛选框：优先 .filter-box，退化为按钮的父级容器 */
-  var scopes = [], seen = [];
-  for (var i = 0; i < buttons.length; i++) {
-    var s = scopeOf(buttons[i]);
-    if (seen.indexOf(s) < 0) { seen.push(s); scopes.push(s); }
+  function boot() {
+    var list = boxes();
+    for (var i = 0; i < list.length; i++) init(list[i]);
   }
-  for (var j = 0; j < scopes.length; j++) setup(scopes[j]);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  // 供测试直接调用（浏览器里无副作用）
+  tpl = { init: init, apply: function (box) { return box.querySelector('.filter-count'); } };
+  if (typeof window !== 'undefined') window.__XBGD_FILTERS__ = tpl;
 })();
