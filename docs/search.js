@@ -33,11 +33,17 @@
     return tr.querySelectorAll('td').length >= 2;
   }
 
+  /* 筛选隐藏同时用 .hide 类和 [hidden] 属性（见 style.css），这里两者都要认 */
+  function isHidden(el) {
+    return el.classList.contains('hide') || el.hasAttribute('hidden');
+  }
+
   function entryRows() {
     var out = [];
-    var rows = document.querySelectorAll('table.wikitable tbody tr');
+    // 不限定 table.wikitable：星湾的友邻表是卡片布局，没有这个类
+    var rows = document.querySelectorAll('table tr');
     for (var i = 0; i < rows.length; i++) {
-      if (isEntryRow(rows[i])) out.push(rows[i]);
+      if (isEntryRow(rows[i]) && !isHidden(rows[i])) out.push(rows[i]);
     }
     return out;
   }
@@ -70,11 +76,23 @@
     return hitList;
   }
 
+  /* 全部条目行（含被筛掉的）。清高亮时必须用这个集合，
+     否则被筛隐藏的行会一直留着上次的 search-hit 标记。 */
+  function allEntryRows() {
+    var out = [];
+    var rows = document.querySelectorAll('table tr');
+    for (var i = 0; i < rows.length; i++) {
+      if (isEntryRow(rows[i])) out.push(rows[i]);
+    }
+    return out;
+  }
+
   function highlightRows(q) {
-    var rows = entryRows();
+    var rows = allEntryRows();
     var ql = q ? q.toLowerCase() : '';
     for (var i = 0; i < rows.length; i++) {
       if (!ql) { rows[i].classList.remove('search-hit'); continue; }
+      if (isHidden(rows[i])) { rows[i].classList.remove('search-hit'); continue; }
       var hit = (rows[i].textContent || '').toLowerCase().indexOf(ql) >= 0;
       rows[i].classList.toggle('search-hit', hit);
     }

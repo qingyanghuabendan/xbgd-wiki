@@ -186,7 +186,10 @@
           }
           if (!hit) ok = false;
         }
-        data[i].el.classList.toggle('hide', !ok);
+        var el = data[i].el;
+        el.classList.toggle('hide', !ok);
+        // 同时设 hidden 属性：即使行上有内联 display，也能被 [hidden] 规则强制隐藏
+        if (ok) { el.removeAttribute('hidden'); } else { el.setAttribute('hidden', ''); }
         if (ok) matched++;
       }
       counter.show(matched, data.length, ids.length, broken);

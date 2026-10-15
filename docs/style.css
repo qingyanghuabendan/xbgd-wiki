@@ -118,9 +118,16 @@ table.wikitable th,table.wikitable td{
 }
 table.wikitable th{background:var(--accent-soft);position:sticky;top:0;z-index:2;}
 table.wikitable tr:nth-child(even) td{background:#fdfcf8;}
-table.wikitable tr.hide{display:none;}
-table.wikitable tr.search-hit td{background:#fff8dc;}
-table.wikitable tr.search-hit{outline:1px solid var(--accent);}
+/* 筛选隐藏：绝不能限定表格类，也不能被行上的内联 display 盖住。
+   星湾的友邻表是卡片布局（<table id="CardSelectTr" style="display:block">，
+   行上还有 style="display:inline-block"），所以这里用通用规则 + !important。 */
+tr.hide,
+tr[hidden],
+[hidden] {
+  display: none !important;
+}
+tr.search-hit td{background:#fff8dc;}
+tr.search-hit{outline:1px solid var(--accent);}
 .img-missing{
   display:inline-block;padding:8px 10px;border:1px dashed #d8cdb4;border-radius:8px;
   background:#faf7ef;color:#a08b5f;font-size:11px;
