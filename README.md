@@ -5,6 +5,9 @@
 站点内容：机制攻略（种植 / 杂交 / 烹饪）、图鉴总览（生物 297 / 植物 202 / 菜肴 121 /
 露卡果实 23 / 星湾 / 杂物）、图鉴原始数据页、友邻档案（喜好 / 日记 / 纪念日）、排版模板说明。
 
+**首页为三栏布局**：左侧**公告栏**（更新与维护说明）、中间主内容（横幅 + 常用内容 /
+机制攻略 / 图鉴一览入口卡片）、右侧信息栏（本站速览、友邻一览、关于本站）。
+
 - **生物 / 烹饪 / 杂交** 三个页面支持点击筛选（多选，「组内取或、组间取与」，点「全部」重置）
 - 顶栏搜索框：先匹配页面名，再就地检索当前页的表格条目（快捷键 `/`）
 - 218 张物种图标 / 8 张友邻头像已随站托管；源站缺失的图标显示为「暂未收录」占位
@@ -14,15 +17,17 @@
 
 ```
 docs/                      ← GitHub Pages 发布的目录（由脚本生成，请勿手改）
-  index.html               首页
+  index.html               首页（三栏布局）
+  首页.html                与 index.html 内容相同，供离线单文件预览按文件名聚合
   p02.html … p37.html      内容页（ASCII 文件名，避免中文 URL 百分号编码问题）
   style.css                样式
   search.js                顶栏搜索
   filters.js               可筛选表格（等价 BWIKI 的 CardSelect 组件）
   search-index.json        页面清单（搜索用）
+  assets/banner.jpg        首页横幅（由 images/图鉴大栏目.png 压缩生成）
   assets/creature/…        218 张物种图标
-  assets/avatar/…          8 张友邻头像
-  assets/impression/…      54 张印记/道具图标
+  assets/avatar/…          好友头像
+  assets/impression/…      印记 / 道具图标
   .nojekyll                跳过 Jekyll 处理
 site/                      ← 站点生成器（源文件）
   build_site.py            复用 target/ 内容渲染整站
