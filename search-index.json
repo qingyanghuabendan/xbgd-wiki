@@ -1,0 +1,187 @@
+[
+ {
+  "title": "首页",
+  "file": "index.html",
+  "desc": ""
+ },
+ {
+  "title": "种植",
+  "file": "p02.html",
+  "desc": "农作物与果树怎么种、怎么收，含生长周期与产量。"
+ },
+ {
+  "title": "杂交",
+  "file": "p03.html",
+  "desc": "常驻 / 赛季限定 / 星海花种花卉的杂交配方表（可筛选）。"
+ },
+ {
+  "title": "烹饪",
+  "file": "p04.html",
+  "desc": "所有菜谱 + 友邻秘方，按难度、厨具、效果、体力恢复筛选。"
+ },
+ {
+  "title": "生物",
+  "file": "p05.html",
+  "desc": "水生 136 / 陆地 85 / 海岸 76，13 列含 218 个图标（可筛选）。"
+ },
+ {
+  "title": "植物",
+  "file": "p06.html",
+  "desc": "全部可种植物的图鉴条目与获取方式。"
+ },
+ {
+  "title": "菜肴",
+  "file": "p07.html",
+  "desc": "全部菜肴的图鉴条目与配方。"
+ },
+ {
+  "title": "露卡果实",
+  "file": "p08.html",
+  "desc": "露卡果实图鉴。"
+ },
+ {
+  "title": "星湾",
+  "file": "p09.html",
+  "desc": "星湾地区图鉴：友邻、地点与道具。"
+ },
+ {
+  "title": "杂物",
+  "file": "p10.html",
+  "desc": "杂物类道具图鉴。"
+ },
+ {
+  "title": "数据：植物",
+  "file": "p11.html",
+  "desc": ""
+ },
+ {
+  "title": "数据：水生生物",
+  "file": "p12.html",
+  "desc": ""
+ },
+ {
+  "title": "数据：陆地生物",
+  "file": "p13.html",
+  "desc": ""
+ },
+ {
+  "title": "数据：海岸生物",
+  "file": "p14.html",
+  "desc": ""
+ },
+ {
+  "title": "数据：菜肴",
+  "file": "p15.html",
+  "desc": ""
+ },
+ {
+  "title": "数据：露卡果实",
+  "file": "p16.html",
+  "desc": ""
+ },
+ {
+  "title": "数据：星湾",
+  "file": "p17.html",
+  "desc": ""
+ },
+ {
+  "title": "数据：杂物",
+  "file": "p18.html",
+  "desc": ""
+ },
+ {
+  "title": "云果",
+  "file": "p19.html",
+  "desc": ""
+ },
+ {
+  "title": "缇卡",
+  "file": "p20.html",
+  "desc": ""
+ },
+ {
+  "title": "萨飞里",
+  "file": "p21.html",
+  "desc": ""
+ },
+ {
+  "title": "哈佩诺",
+  "file": "p22.html",
+  "desc": ""
+ },
+ {
+  "title": "绵朵莉",
+  "file": "p23.html",
+  "desc": ""
+ },
+ {
+  "title": "热贝尔",
+  "file": "p24.html",
+  "desc": ""
+ },
+ {
+  "title": "蛮蛮",
+  "file": "p25.html",
+  "desc": ""
+ },
+ {
+  "title": "伊佐奇",
+  "file": "p26.html",
+  "desc": ""
+ },
+ {
+  "title": "多杰朗",
+  "file": "p27.html",
+  "desc": ""
+ },
+ {
+  "title": "鹤玉",
+  "file": "p28.html",
+  "desc": ""
+ },
+ {
+  "title": "秋日钓鱼季",
+  "file": "p29.html",
+  "desc": ""
+ },
+ {
+  "title": "草帽",
+  "file": "p30.html",
+  "desc": ""
+ },
+ {
+  "title": "雨靴",
+  "file": "p31.html",
+  "desc": ""
+ },
+ {
+  "title": "详情页模板",
+  "file": "p32.html",
+  "desc": ""
+ },
+ {
+  "title": "详情页模板：星湾",
+  "file": "p33.html",
+  "desc": ""
+ },
+ {
+  "title": "详情页模板：杂物",
+  "file": "p34.html",
+  "desc": ""
+ },
+ {
+  "title": "详情页模板：植物",
+  "file": "p35.html",
+  "desc": ""
+ },
+ {
+  "title": "详情页模板：菜肴",
+  "file": "p36.html",
+  "desc": ""
+ },
+ {
+  "title": "详情页模板：露卡果实",
+  "file": "p37.html",
+  "desc": ""
+ }
+]

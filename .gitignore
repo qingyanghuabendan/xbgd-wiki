@@ -1,0 +1,14 @@
+# 凭据与过程文件：不应进入仓库
+cookies.txt
+*_report.json
+publish_report.json
+icons_upload_report.json
+live_status.json
+
+# 中间产物
+__pycache__/
+*.pyc
+
+# 预览与临时文件
+star_bay_preview.html
+*_check.png
