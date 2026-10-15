@@ -66,9 +66,17 @@
     }
     if (!rows.length) return;
 
-    var counter = document.createElement('div');
-    counter.className = 'filter-count';
-    scope.appendChild(counter);
+    // 初始化必须幂等：scopeOf() 对同一容器里的每个按钮都会返回同一个容器，
+    // 若不加标记，setup 会被调用 N 次，往同一个容器里塞 N 个计数器。
+    if (scope.getAttribute('data-xbgd-init') === '1') return;
+    scope.setAttribute('data-xbgd-init', '1');
+
+    var counter = scope.querySelector('.filter-count');
+    if (!counter) {
+      counter = document.createElement('div');
+      counter.className = 'filter-count';
+      scope.appendChild(counter);
+    }
 
     function activeValues() {
       var byGroup = {}, resets = {};
