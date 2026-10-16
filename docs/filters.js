@@ -160,6 +160,26 @@
                    ' 没有对应的 data-paramN 数据列，这些按钮点下去会筛不出内容。');
     }
 
+    // 同组单选模式（植物图鉴用）：容器带 data-select="single" 时，
+    // 每组只能选一个；同组其它选项置灰（不可点）。
+    var single = box.getAttribute('data-select') === 'single';
+
+    function refreshGray() {
+      if (!single) return;
+      for (var g = 0; g < groups.length; g++) {
+        var grp = groups[g];
+        if (!grp.buttons.length) continue;
+        var on = null;
+        for (var i = 0; i < grp.buttons.length; i++) {
+          if (grp.buttons[i].el.classList.contains('cardSelectOn')) { on = grp.buttons[i]; break; }
+        }
+        for (var j = 0; j < grp.buttons.length; j++) {
+          var b = grp.buttons[j];
+          b.el.classList.toggle('cardSelectOff', !!(on && on !== b));
+        }
+      }
+    }
+
     function selected() {
       var on = {};
       for (var i = 0; i < buttons.length; i++) {
@@ -210,18 +230,29 @@
         node = node.parentNode;
       }
       if (!btn) return;
+      // 注意：置灰（cardSelectOff）只是「本组已选了别的项」的视觉提示，
+      // 仍然必须可点——点它就切到该项。早期版本在这里直接 return，导致切换失效。
       var info = parseOption(btn);
       if (info.group === '0') {
         for (var i = 0; i < buttons.length; i++) buttons[i].el.classList.remove('cardSelectOn');
       } else if (info.reset) {
         reset(info.group);
+      } else if (single) {
+        // 同组单选：先清掉本组其它选中项，再切换自己
+        var wasOn = btn.classList.contains('cardSelectOn');
+        for (var k = 0; k < buttons.length; k++) {
+          if (buttons[k].group === info.group) buttons[k].el.classList.remove('cardSelectOn');
+        }
+        if (!wasOn) btn.classList.add('cardSelectOn');
       } else {
         btn.classList.toggle('cardSelectOn');
       }
       apply();
+      refreshGray();
     });
 
     apply();
+    refreshGray();
   }
 
   function boot() {

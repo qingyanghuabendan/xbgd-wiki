@@ -145,6 +145,12 @@ tr.search-hit{outline:1px solid var(--accent);}
 .cardSelectOption.cardSelectOn{
   background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;
 }
+/* 同组单选（植物图鉴）：本组已选了别的项时，其余选项置灰、不可点 */
+.cardSelectOption.cardSelectOff{
+  opacity:.42;background:#f4f2ec;border-color:#eae5d8;color:#a9a294;
+  cursor:not-allowed;text-decoration:line-through;
+}
+.cardSelectOption.cardSelectOff:hover{background:#f4f2ec;border-color:#eae5d8;text-decoration:line-through;}
 .filter-box{
   margin:12px 0;padding:10px 12px;border:1px solid #e3d9c6;border-radius:8px;
   background:#fffdf6;font-size:13px;line-height:2;
