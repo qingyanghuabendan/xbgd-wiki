@@ -346,4 +346,31 @@ tr.search-hit{outline:1px solid var(--accent);}
 @media print{
   .topbar,.sidebar,.totop,.search-wrap{display:none !important;}
   main{max-width:none;padding:0;}
+  .page-toc{display:none !important;}
+}
+
+/* 页内目录（星海旅行区域页）：宽屏时固定到正文右侧的空白处，避免遮挡正文 */
+.page-toc{
+  margin:0 0 14px;padding:10px 12px;border:1px solid #e3d9c6;border-radius:8px;
+  background:#fffdf6;font-size:13px;line-height:1.95;
+}
+.page-toc a{color:var(--ink);text-decoration:none;}
+.page-toc a:hover{color:var(--accent);text-decoration:underline;}
+@media (min-width:1680px){
+  .page-toc{
+    position:fixed;top:72px;
+    left:calc(var(--side-w) + 1240px + 14px);
+    width:196px;max-height:calc(100vh - 96px);overflow-y:auto;
+    margin:0;z-index:20;
+    box-shadow:0 2px 10px rgba(0,0,0,.06);
+  }
+}
+@media (min-width:1460px) and (max-width:1679px){
+  /* 中等宽度：贴到视口右缘，仍在正文之外 */
+  .page-toc{
+    position:fixed;top:72px;right:16px;
+    width:184px;max-height:calc(100vh - 96px);overflow-y:auto;
+    margin:0;z-index:20;
+    box-shadow:0 2px 10px rgba(0,0,0,.06);
+  }
 }
