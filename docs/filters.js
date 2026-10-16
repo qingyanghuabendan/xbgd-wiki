@@ -142,7 +142,10 @@
           .map(function (s) { return s.trim(); }).filter(Boolean);
         columns[names[n]] = true;
       }
-      data.push({ el: rows[r], values: values });
+      // 表头行带着「本组全部取值」（防止自己被隐藏），但它不是数据行。
+      // 若把它算进 data，跨组可达性判断会永远成立、级联置灰失效。
+      var isHead = !!(rows[r].getAttribute && rows[r].getAttribute('data-xbgd-head'));
+      data.push({ el: rows[r], values: values, head: isHead });
     }
 
     // 页面自身的筛选维度可能与数据列数不一致（源数据就缺列）——预先算出来提示。
@@ -160,22 +163,77 @@
                    ' 没有对应的 data-paramN 数据列，这些按钮点下去会筛不出内容。');
     }
 
-    // 同组单选模式（植物图鉴用）：容器带 data-select="single" 时，
-    // 每组只能选一个；同组其它选项置灰（不可点）。
+    // 同组单选模式（植物图鉴用）：容器带 data-select="single" 时，每组只能选一个。
+    // 另外做「跨组联动置灰」：选某项后，其它组里与当前选择无交集的选项变灰，
+    // 例如选「分类=作物」后，「组别名」只剩作物类下的品种可点。
     var single = box.getAttribute('data-select') === 'single';
 
+    // 当前已选条件：{组: 值}（单选下每组最多一个）
+    function currentSelection() {
+      var sel = {};
+      for (var i = 0; i < buttons.length; i++) {
+        var b = buttons[i];
+        if (!b.reset && b.el.classList.contains('cardSelectOn')) sel[b.group] = b.value;
+      }
+      return sel;
+    }
+
+    // 组 group 取 value 时，与「其它组的已选条件」是否还有匹配的行。
+    // 显式接收 selection，避免在读选中态时依赖遍历顺序（早期版本在 refreshGray
+    // 的循环里调用本函数，结果恒为 true，级联置灰因此失效）。
+    function reachable(group, value, selection) {
+      var keys = Object.keys(selection || {});
+      for (var i = 0; i < data.length; i++) {
+        if (data[i].head) continue;                 // 表头行不参与可达性判断
+        var vals = data[i].values['data-param' + group] || [];
+        if (vals.indexOf(value) < 0) continue;
+        var ok = true;
+        for (var k = 0; k < keys.length && ok; k++) {
+          var g = keys[k];
+          if (g === group) continue;
+          var have = data[i].values['data-param' + g] || [];
+          if (have.indexOf(selection[g]) < 0) ok = false;
+        }
+        if (ok) return true;
+      }
+      return false;
+    }
+
     function refreshGray() {
-      if (!single) return;
+      var sel = currentSelection();
       for (var g = 0; g < groups.length; g++) {
         var grp = groups[g];
         if (!grp.buttons.length) continue;
-        var on = null;
-        for (var i = 0; i < grp.buttons.length; i++) {
-          if (grp.buttons[i].el.classList.contains('cardSelectOn')) { on = grp.buttons[i]; break; }
-        }
+        var onValue = sel[grp.id];
         for (var j = 0; j < grp.buttons.length; j++) {
           var b = grp.buttons[j];
-          b.el.classList.toggle('cardSelectOff', !!(on && on !== b));
+          // 与其它组当前选择无交集 -> 灰（跨组联动，单选/多选都适用）
+          var unreachable = !reachable(b.group, b.value, sel);
+          // 单选模式下，同组已选了别的项也灰（多选模式允许同组多选）
+          var sibling = !!(single && onValue && onValue !== b.value);
+          b.el.classList.toggle('cardSelectOff', sibling || unreachable);
+          // 多选模式下「不可达」的按钮点了会筛出 0 条，直接忽略点击
+          b.el.classList.toggle('disabled', !single && unreachable);
+        }
+      }
+    }
+
+    // 选择变化后，把「与当前选择不可能同时成立」的已选项取消掉，
+    // 否则会停留在自相矛盾的组合上（例如 分类=花 却留着 组别名=小麦）。
+    // 参与过本次点击的组（justGroup）不参与清理，用户刚点的要算数。
+    function pruneUnreachable(justGroup) {
+      var changed = true, guard = 0;
+      while (changed && guard++ < 20) {
+        changed = false;
+        var sel = currentSelection();
+        for (var i = 0; i < buttons.length; i++) {
+          var b = buttons[i];
+          if (b.reset || b.group === justGroup) continue;
+          if (!b.el.classList.contains('cardSelectOn')) continue;
+          if (!reachable(b.group, b.value, sel)) {
+            b.el.classList.remove('cardSelectOn');
+            changed = true;
+          }
         }
       }
     }
@@ -230,8 +288,10 @@
         node = node.parentNode;
       }
       if (!btn) return;
-      // 注意：置灰（cardSelectOff）只是「本组已选了别的项」的视觉提示，
-      // 仍然必须可点——点它就切到该项。早期版本在这里直接 return，导致切换失效。
+      // 置灰（cardSelectOff）的语义分两种：
+      //  · 单选模式：只是「换一个」的提示，必须可点（点了就切过去）
+      //  · 多选模式：与当前条件无交集，点了只会得到 0 条，直接忽略
+      if (!single && btn.classList.contains('disabled')) return;
       var info = parseOption(btn);
       if (info.group === '0') {
         for (var i = 0; i < buttons.length; i++) buttons[i].el.classList.remove('cardSelectOn');
@@ -247,6 +307,7 @@
       } else {
         btn.classList.toggle('cardSelectOn');
       }
+      if (single) pruneUnreachable(info.group);   // 清掉被本次选择「挤掉」的旧选项
       apply();
       refreshGray();
     });
