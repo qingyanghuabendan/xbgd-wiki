@@ -374,3 +374,27 @@ tr.search-hit{outline:1px solid var(--accent);}
     box-shadow:0 2px 10px rgba(0,0,0,.06);
   }
 }
+
+
+/* 友邻页信息框（立绘 + 目录）：宽屏移到正文右侧留白，避免遮挡正文 */
+.friend-info{
+  float:right;clear:right;width:300px;max-width:100%;margin:0 0 16px 18px;
+  padding:10px 12px;border:1px solid #e3d9c6;border-radius:10px;background:#fffdf6;
+  position:sticky;top:12px;box-sizing:border-box;
+}
+.friend-info-name{text-align:center;font-size:17px;font-weight:bold;margin-bottom:8px;}
+.friend-info-toc{clear:both;margin-top:8px;}
+@media (min-width:1680px){
+  .friend-info{
+    position:fixed;top:72px;left:calc(var(--side-w) + 1240px + 14px);
+    width:258px;max-height:calc(100vh - 96px);overflow-y:auto;
+    margin:0;z-index:20;box-shadow:0 2px 10px rgba(0,0,0,.06);
+  }
+}
+@media (min-width:1460px) and (max-width:1679px){
+  .friend-info{
+    position:fixed;top:72px;right:16px;width:236px;max-height:calc(100vh - 96px);
+    overflow-y:auto;margin:0;z-index:20;box-shadow:0 2px 10px rgba(0,0,0,.06);
+  }
+}
+@media print{ .friend-info{display:none !important;} }
